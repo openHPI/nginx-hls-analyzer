@@ -1,0 +1,49 @@
+$Id: README 3 2009-09-15 22:00:39Z bvamos $
+
+(C) 2009 Balazs Vamos <bvamos@fmsloganalyzer.com>
+
+FMS Log Analyzer is distributed under the terms of GNU GPL
+
+WELCOME
+
+FMS Log Analyzer is an Adobe Flash Media Server Access log analyzer written 
+in PHP and using MySQL as a backend database store. Supported log file format
+is the access log format of Adobe Flash Media Streaming Server.
+
+PREREQUISITES
+
+- A web server with PHP >= 4.3
+- Access log files of FMS
+- A MySQL database server >= 3.23.52 or any production release of 4.x or 5.x
+- Web browser
+
+RELEASE NOTES
+
+Latest release: 1.0
+Release date: 2009-09-15
+
+New features:
+- Initial release 
+
+INSTALLATION
+
+Copy all the files into a directory and set up an alias or virtual host with 
+webroot as the Document root.
+Create a MySQL database and create fmslog table. SQL can be found in 
+db/install.sql.
+
+USE
+
+Before starting FMS Log Analyzer for the first time, you should review the 
+fmsloganalyzer.ini.sample file, rename to fmsloganalyzer.ini and adjust it 
+as needed for your installation.
+Run process.php to generate statistic data from log files.
+You can see statistics by pointing your web browser to:
+http://<location>/index.php
+When you load the FMS Log Analyzer home page, you will see a couple of 
+valued reports from your FMS access logs.
+
+COMMENTS
+
+Please let me know what you think! If you have questions or comments please
+email me at bvamos@fmsloganalyzer.com.

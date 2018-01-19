@@ -1,0 +1,41 @@
+/* $Id: style.css 5 2009-09-16 19:55:59Z bvamos $ */
+
+body, td, th {
+  font-family: Verdana;
+  font-size: 12px;
+}
+
+#footer{
+	border-top: 1px dotted #ADADAD;
+	padding-top: 10px;
+	text-align: right;
+}
+
+th {
+  background-color: #EDEDED;
+  border-top: 1px solid #AAAAAA;
+  border-bottom: 1px solid #AAAAAA;
+  padding-right: 5px;
+}
+
+td.odd {
+  background-color: #EFEFEF;
+}
+
+.menu1 li {
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+
+.menu1 {
+  list-style: none;
+  list-style-position: inside;
+  padding-left: 0px;
+  margin-left: 0px;
+}
+
+.menu2 {
+  padding-left: 5px;
+  margin-left: 5px;
+}
+

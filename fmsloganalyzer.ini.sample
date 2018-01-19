@@ -1,0 +1,13 @@
+[Common]
+LogDirectory = c:\temp\logs
+Sitename = Your Site name
+DirectorySeparator = \\
+
+[Database]
+Username = user
+Password = pass
+Server = localhost
+Database = fmslog
+
+[Filter]
+;Virtualhost = 
