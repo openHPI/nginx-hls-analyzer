@@ -12,28 +12,60 @@ $CONFIG = new Config();
 if (!$CONFIG)
     die($CONFIG->error_msg());
 
-$DIRSEP = $CONFIG->items['Common']['DirectorySeparator'];
 $ClientArray = array();
 
 // GeoIP
 $gi = geoip_open('includes/GeoIP/GeoIP.dat', GEOIP_STANDARD);
 
-$handle = @fopen("C:/xampp/htdocs/nginx-hls-analyzer/logs/access.log", "r");
+// Database connection
+$db_username = $CONFIG->items['Database']['Username'];
+$db_password = $CONFIG->items['Database']['Password'];
+$db_host = $CONFIG->items['Database']['Server'];
+$db_database = $CONFIG->items['Database']['Database'];
+
+$DB = new mysqli($db_host, $db_username, $db_password, $db_database);
+
+$handle = @fopen($CONFIG->items['Common']['NginxAccessLogLocation'], "r");
 if ($handle) {
     while (($line = fgets($handle, 4096)) !== false) {
         
-        if(strpos($line, 'GET /hls/'))
+        if(strpos($line, 'GET '. $CONFIG->items['Common']['NginxStreamFolder']))
         {
-            $whitespace_splits = explode(' ', $line);
-            $ip_addr = $whitespace_splits[0];
+            //Time
+            $bracket_splits = explode(']', explode('[', $line)[1])[0];
+            $transfer_time = explode(' ', $bracket_splits)[0];
             
-            $quote_splits = explode('"', rtrim($line));
-            $user_agent = $quote_splits[5];
-            
-            //Checksum
-            $client_id = md5($ip_addr.$user_agent);
-            
-            echo $client_id . " - " . $ip_addr . " - " . $user_agent ."<br>";
+            //Check if time is already recorded
+            if(true)
+            {
+                //IP-Address
+                $whitespace_splits = explode(' ', $line);
+                $ip_addr = $whitespace_splits[0];
+
+                //User Agent
+                $quote_splits = explode('"', rtrim($line));
+                $user_agent = $quote_splits[5];
+
+                //Checksum
+                $client_id = md5($ip_addr.$user_agent);
+                
+                //Bytes Transfered
+                $bytes_transfered = $whitespace_splits[9];
+                
+                //StreamName
+                $PathToStream = explode(' ', $quote_splits[1])[1];
+                $PathToStream = explode($CONFIG->items['Common']['NginxStreamFolder'], $PathToStream)[1];
+                if(!strpos($PathToStream, '.m3u8'))
+                {
+                    $stream_path = explode('/', $PathToStream)[0];
+                    $stream_path = explode('_', $stream_path);
+                    
+                    $stream_name = $stream_path[0];
+                    $stream_quality = $stream_path[1];
+                    
+                    //Save Log to Database
+                }
+            }
         }
     }
     if (!feof($handle)) {
@@ -62,7 +94,7 @@ if ($handle = opendir($CONFIG->items['Common']['LogDirectory'])) {
                 echo $ip_addr . "<br>";
 
                 // Count fields in a row
-                /* $num = count($data);
+                 $num = count($data);
                   echo $num;
                   if ($num > 1) {
                   // Column names
@@ -115,7 +147,7 @@ if ($handle = opendir($CONFIG->items['Common']['LogDirectory'])) {
                   $row++;
                   }else {
                   // Comment or empty line
-                  } */
+                  }
             }
             fclose($fh);
         }
@@ -123,26 +155,6 @@ if ($handle = opendir($CONFIG->items['Common']['LogDirectory'])) {
     closedir($handle);
 }
 
-
-// Database connection
-$db_username = $CONFIG->items['Database']['Username'];
-$db_password = $CONFIG->items['Database']['Password'];
-$db_host = $CONFIG->items['Database']['Server'];
-$db_database = $CONFIG->items['Database']['Database'];
-
-$DB = new mysqli($db_host, $db_username, $db_password, $db_database);
-
-// Truncate table
-$query = 'TRUNCATE TABLE fmslog';
-$result = mysql_query($query, $DB);
-if (!$result) {
-    $message = 'Invalid query: ' . mysql_error() . "; ";
-    $message .= 'Whole query: ' . $query;
-    print "$message\n";
-}
-
-$i = 0;
-$j = 0;
 $query = "INSERT INTO fmslog () VALUES ";
 $query_values = '';
 $LogArray = array();
