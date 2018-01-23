@@ -1,18 +1,37 @@
--- $Id: install.sql 1 2009-09-15 20:13:42Z bvamos $
+SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+SET AUTOCOMMIT = 0;
+START TRANSACTION;
+SET time_zone = "+00:00";
 
-CREATE TABLE `fmslog` (                                                                                           
-          `c-client-id` INT(11) DEFAULT NULL,                                                                             
-          `c-ip` VARCHAR(15) CHARACTER SET latin1 DEFAULT NULL,                                                           
-          `c-ip-country` VARCHAR(30) CHARACTER SET latin1 DEFAULT NULL,                                                   
-          `x-file-name` VARCHAR(60) CHARACTER SET latin1 DEFAULT NULL,                                                    
-          `x-sname` VARCHAR(40) CHARACTER SET latin1 DEFAULT NULL,                                                        
-          `connect-timestamp` INT(11) DEFAULT NULL,                                                                       
-          `disconnect-timestamp` INT(11) DEFAULT NULL,                                                                    
-          `play-timestamp` INT(11) DEFAULT NULL,                                                                          
-          `stop-timestamp` INT(11) DEFAULT NULL,                                                                          
-          `pause-timestamp` INT(11) DEFAULT NULL,                                                                         
-          `unpause-timestamp` INT(11) DEFAULT NULL,                                                                       
-          `x-duration` INT(11) DEFAULT NULL,                                                                              
-          `sc-bytes` INT(11) DEFAULT NULL,                                                                                
-          `sc-stream-bytes` INT(11) DEFAULT NULL                                                                          
-        ) ENGINE=MYISAM DEFAULT CHARSET=latin1;
+
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8mb4 */;
+
+CREATE TABLE `fmslog` (
+  `id` int(11) NOT NULL,
+  `c-client-id` varchar(100) DEFAULT NULL,
+  `c-ip` varchar(15) DEFAULT NULL,
+  `c-agent` varchar(100) NOT NULL,
+  `c-ip-country` varchar(30) DEFAULT NULL,
+  `x-file-name` varchar(60) DEFAULT NULL,
+  `x-sname` varchar(40) DEFAULT NULL,
+  `connect-timestamp` datetime DEFAULT NULL,
+  `disconnect-timestamp` datetime DEFAULT NULL,
+  `x-duration` int(11) DEFAULT NULL,
+  `sc-bytes` int(11) DEFAULT NULL,
+  `sc-stream-bytes` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+
+
+ALTER TABLE `fmslog`
+  ADD PRIMARY KEY (`id`);
+
+ALTER TABLE `fmslog`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT;
+COMMIT;
+
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
