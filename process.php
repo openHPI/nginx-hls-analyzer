@@ -141,7 +141,6 @@ if (!$result) {
                 . $loginfo->timestamp.'" BETWEEN '
                 . '`timestamp-end` AND DATE_ADD(`timestamp-end`, INTERVAL 1 MINUTE)';
                 
-            echo $query."<br>";
             //Update
             $DB->query($query);
             
