@@ -22,9 +22,9 @@ if ($DB->connect_error) {
 $from_date = isset($_GET['from_date']) ? $_GET['from_date'] : date('Y-m-d', strtotime('-30 day'));
 if (!checkdate(substr($from_date, 5, 2), substr($from_date, 8, 2), substr($from_date, 0, 4)))
     $from_date = date('Y-m-d', strtotime('-30 day'));
-$to_date = isset($_GET['to_date']) ? $_GET['to_date'] : date('Y-m-d');
+$to_date = isset($_GET['to_date']) ? $_GET['to_date'] : date('Y-m-d H:m:s');
 if (!checkdate(substr($to_date, 5, 2), substr($to_date, 8, 2), substr($to_date, 0, 4)))
-    $to_date = date('Y-m-d');
+    $to_date = date('Y-m-d H:m:s');
 if (strtotime($to_date) - strtotime($from_date) > 3600 * 24 * 365) {
     die("ERROR: Time period can not be larger the 1 year.");
 }
@@ -250,8 +250,8 @@ $SummaryStats['duration'] = summary_stats_duration($from_date, $to_date);
 function summary_stats_hits($from_date, $to_date) {
     global $DB;
     $query = "SELECT COUNT(*) cnt "
-            . "FROM `fmslog` "
-            . "WHERE `connect-timestamp` "
+            . "FROM `connections` "
+            . "WHERE `timestamp-start` "
             . "BETWEEN '" . $from_date . "' AND '" . $to_date . "'";
     $result = $DB->query($query);
 
@@ -271,8 +271,8 @@ function summary_stats_uniqueip($from_date, $to_date) {
     global $DB;
 
     $query = "SELECT DISTINCT `c-client-id` "
-            . "FROM fmslog "
-            . "WHERE `connect-timestamp` "
+            . "FROM connections "
+            . "WHERE `timestamp-start` "
             . "BETWEEN '" . $from_date . "' AND '" . $to_date . "' "
             . "AND `c-ip`!='-'";
     $result = $DB->query($query);
@@ -292,8 +292,8 @@ function summary_stats_uniquecountry($from_date, $to_date) {
     global $DB;
 
     $query = "SELECT DISTINCT `c-ip-country` "
-            . "FROM fmslog "
-            . "WHERE `connect-timestamp` "
+            . "FROM connections "
+            . "WHERE `timestamp-start` "
             . "BETWEEN '" . $from_date . "' AND '" . $to_date . "' ";
     $result = $DB->query($query);
     if (!$result) {
@@ -311,16 +311,16 @@ function summary_stats_uniquecountry($from_date, $to_date) {
 function summary_stats_allfiles($from_date, $to_date, $limit = 20) {
     global $DB;
 
-    $query = "SELECT `x-sname`, "
+    $query = "SELECT `streamname`, "
             . "COUNT(*) cnt, "
-            . "ROUND(SUM(`sc-stream-bytes`)/1024/104, 0) AS traffic_mbyte, "
-            . "ROUND(AVG(`x-duration`), 0) AS avgduration, "
-            . "ROUND(SUM(`sc-stream-bytes`)*8/1024/SUM(`x-duration`), 0) AS avgbandwidth "
-            . "FROM fmslog "
-            . "WHERE `x-sname`!='-' "
-            . "AND `connect-timestamp` "
+            . "ROUND(SUM(`bytes`)/1024/104, 0) AS traffic_mbyte, "
+            . "ROUND(AVG(`duration`), 0) AS avgduration, "
+            . "ROUND(SUM(`bytes`)*8/1024/SUM(`duration`), 0) AS avgbandwidth "
+            . "FROM connections "
+            . "WHERE `streamname`!='-' "
+            . "AND `timestamp-start` "
             . "BETWEEN '" . $from_date . "' AND '" . $to_date . "' "
-            . "GROUP BY `x-sname` "
+            . "GROUP BY `streamname` "
             . "ORDER BY cnt DESC "
             . "LIMIT " . $limit;
     $result = $DB->query($query);
@@ -351,12 +351,12 @@ function summary_stats_uniqueip_list($from_date, $to_date, $limit = 20) {
 
     $query = "SELECT `c-ip`, "
             . "COUNT(*) cnt, "
-            . "ROUND(SUM(`sc-stream-bytes`)/1024/104, 0) AS traffic_mbyte, "
-            . "ROUND(AVG(`x-duration`), 0) AS avgduration, "
-            . "ROUND(SUM(`sc-stream-bytes`)*8/1024/SUM(`x-duration`), 0) AS avgbandwidth "
-            . "FROM fmslog  "
+            . "ROUND(SUM(`bytes`)/1024/104, 0) AS traffic_mbyte, "
+            . "ROUND(AVG(`duration`), 0) AS avgduration, "
+            . "ROUND(SUM(`bytes`)*8/1024/SUM(`duration`), 0) AS avgbandwidth "
+            . "FROM connections  "
             . "WHERE `c-ip`!='-' "
-            . "AND `connect-timestamp` "
+            . "AND `timestamp-start` "
             . "BETWEEN '" . $from_date . "' AND '" . $to_date . "' "
             . "GROUP BY `c-ip` "
             . "ORDER BY cnt DESC "
@@ -387,11 +387,11 @@ function summary_stats_uniqueip_list($from_date, $to_date, $limit = 20) {
 function summary_stats_duration($from_date, $to_date) {
     global $DB;
 
-    $query = "SELECT SUM(`x-duration`) sumdur, "
-            . "MAX(`x-duration`) maxdur, "
-            . "MIN(`x-duration`) mindur "
-            . "FROM fmslog "
-            . "WHERE `connect-timestamp` "
+    $query = "SELECT SUM(`duration`) sumdur, "
+            . "MAX(`duration`) maxdur, "
+            . "MIN(`duration`) mindur "
+            . "FROM connections "
+            . "WHERE `timestamp-start` "
             . "BETWEEN '" . $from_date . "' AND '" . $to_date . "' ";
     $result = $DB->query($query);
     if (!$result) {

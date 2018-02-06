@@ -12,11 +12,6 @@ $CONFIG = new Config();
 if (!$CONFIG)
     die($CONFIG->error_msg());
 
-$ClientArray = array();
-
-// GeoIP
-$gi = geoip_open('includes/GeoIP/GeoIP.dat', GEOIP_STANDARD);
-
 // Database connection
 $db_username = $CONFIG->items['Database']['Username'];
 $db_password = $CONFIG->items['Database']['Password'];
@@ -29,41 +24,73 @@ $handle = @fopen($CONFIG->items['Common']['NginxAccessLogLocation'], "r");
 if ($handle) {
     while (($line = fgets($handle, 4096)) !== false) {
         
-        if(strpos($line, 'GET '. $CONFIG->items['Common']['NginxStreamFolder']))
+        $line_data = json_decode($line);
+        if($line_data)
         {
-            //Time
-            $bracket_splits = explode(']', explode('[', $line)[1])[0];
-            $transfer_time = explode(' ', $bracket_splits)[0];
-            
-            //Check if time is already recorded
-            if(true)
+            if($line_data->status == "200" && strpos($line_data->request, 'ET '. $CONFIG->items['Common']['NginxStreamFolder']))
             {
-                //IP-Address
-                $whitespace_splits = explode(' ', $line);
-                $ip_addr = $whitespace_splits[0];
+                //Time
+                $transfer_time = logdate_to_mysqldatetime($line_data->time_local);
 
-                //User Agent
-                $quote_splits = explode('"', rtrim($line));
-                $user_agent = $quote_splits[5];
-
-                //Checksum
-                $client_id = md5($ip_addr.$user_agent);
+                //Check if time is already recorded
+                $query = 'SELECT time FROM `last_update`';
+                $result = $DB->query($query);
+                if (!$result) {
+                    $message = 'Invalid query: ' . $DB->error . "\n";
+                    $message .= 'Whole query: ' . $query;
+                    die($message);
+                } else {
+                    $resultoutput = $result->fetch_assoc();
+                }
+                $result->close();
                 
-                //Bytes Transfered
-                $bytes_transfered = $whitespace_splits[9];
-                
-                //StreamName
-                $PathToStream = explode(' ', $quote_splits[1])[1];
-                $PathToStream = explode($CONFIG->items['Common']['NginxStreamFolder'], $PathToStream)[1];
-                if(!strpos($PathToStream, '.m3u8'))
+                if($resultoutput['time'] <= $transfer_time)
                 {
-                    $stream_path = explode('/', $PathToStream)[0];
-                    $stream_path = explode('_', $stream_path);
+                    //IP-Address
+                    $ip_addr = $line_data->remote_addr;
+
+                    //User Agent
+                    $user_agent = $line_data->http_user_agent;
                     
-                    $stream_name = $stream_path[0];
-                    $stream_quality = $stream_path[1];
+                    //Connection ID
+                    $connection_id = $line_data->connection;
+
+                    //Checksum with connection
+                    $client_id_w_conn = md5($ip_addr.$connection_id.$user_agent);
                     
-                    //Save Log to Database
+                    //Checksum with connection
+                    $client_id = md5($ip_addr.$user_agent);
+
+                    //Bytes Transfered
+                    $bytes_transfered = $line_data->bytes_sent;
+
+                    //StreamName
+                    $PathToStream = explode(' ', $line_data->request)[1];
+                    $PathToStream = explode($CONFIG->items['Common']['NginxStreamFolder'], $PathToStream)[1];
+                    if(!strpos($PathToStream, '.m3u8') && $PathToStream != '')
+                    {
+                        $stream_path = explode('/', $PathToStream)[0];
+                        $stream_path = explode('_', $stream_path);
+
+                        $stream_name = $stream_path[0];
+                        $stream_quality = $stream_path[1];
+
+                        //TODO: Not implemented
+                        $location = "";
+
+                        //Save Log to Database
+                        $DB->query('INSERT INTO `log` '
+                                . '(`c-client-id`, `c-client-id-conn`, `c-ip`,`c-agent`'
+                                . ',`c-ip-country`, `streamname`, `streamquality`,'
+                                . '`connection-id`, `timestamp`, `bytes`) VALUES'
+                                . '("'.$client_id.'", "'.$client_id_w_conn.'", "'.$ip_addr.'",'
+                                . '"'.$user_agent.'", "'.$location.'",'
+                                . '"'.$stream_name.'", "'.$stream_quality.'",'
+                                . '"'.$connection_id.'",'
+                                . '"'.$transfer_time.'", "'.$bytes_transfered.'")');
+                        
+                        $DB->query('UPDATE `last_update` SET time = "'.$transfer_time.'"');
+                    }
                 }
             }
         }
@@ -74,8 +101,69 @@ if ($handle) {
     fclose($handle);
 }
 
+//Evaluate Inputs
+//Check if time is already recorded
+$query = 'SELECT `id`, `c-client-id`, `c-ip`, `c-agent`, `c-ip-country`, `streamname`, `timestamp`, `bytes` FROM '
+        . '`log` WHERE evaluated = 0 ORDER BY timestamp ASC';
+$result = $DB->query($query);
+if (!$result) {
+    $message = 'Invalid query: ' . $DB->error . "\n";
+    $message .= 'Whole query: ' . $query;
+    die($message);
+} else {
+    while ($loginfo=$result->fetch_object())
+    {
+        
+        //Check if client-id is already recorded within last 2 minutes
+        $query = 'SELECT COUNT(*) as cnt FROM `connections` '
+                . 'WHERE `c-client-id` = "'.$loginfo->{'c-client-id'}.'" AND '
+                . '`streamname` = "'.$loginfo->streamname.'" AND "'
+                . $loginfo->timestamp.'" BETWEEN '
+                . '`timestamp-end` AND DATE_ADD(`timestamp-end`, INTERVAL 1 MINUTE)';
+                
+        $result_connections = $DB->query($query);
+        if (!$result_connections) {
+            $message = 'Invalid query: ' . $DB->error . "\n";
+            $message .= 'Whole query: ' . $query;
+            die($message);
+        } else {
+            $resultoutput = $result_connections->fetch_assoc();
+        }
+        $result_connections->close();
+        if($resultoutput['cnt'] > 0)
+        {
+            $query = 'UPDATE `connections` SET '
+                . '`bytes` = `bytes` + '.$loginfo->bytes.', '
+                . '`timestamp-end` = "'.$loginfo->timestamp.'", '
+                . '`duration` = TIME_TO_SEC(TIMEDIFF("'.$loginfo->timestamp.'", `timestamp-start`)) '
+                . 'WHERE `c-client-id` ="'.$loginfo->{'c-client-id'}.'" AND '
+                . '`streamname` = "'.$loginfo->streamname.'" AND "'
+                . $loginfo->timestamp.'" BETWEEN '
+                . '`timestamp-end` AND DATE_ADD(`timestamp-end`, INTERVAL 1 MINUTE)';
+                
+            echo $query."<br>";
+            //Update
+            $DB->query($query);
+            
+        } else {
+            //Insert
+            $DB->query('INSERT INTO `connections` '
+                . '(`c-client-id`, `c-ip`,`c-agent`'
+                . ',`c-ip-country`, `streamname`, `timestamp-start`,'
+                . '`timestamp-end`, `bytes`, `duration`) VALUES'
+                . '("'.$loginfo->{'c-client-id'}.'", "'.$loginfo->{'c-ip'}.'", "'.$loginfo->{'c-agent'}.'",'
+                . '"'.$loginfo->{'c-ip-country'}.'", "'.$loginfo->streamname.'", "'.$loginfo->timestamp.'",'
+                . '"'.$loginfo->timestamp.'", "'.$loginfo->bytes.'", "0")');
+        }
+        //Update log entry to evaluated
+        $DB->query('UPDATE `log` SET evaluated = "1" WHERE id = '.$loginfo->id);
+    }
+    // Free result set
+    $result->close();
+}
+
 // Open log files
-if ($handle = opendir($CONFIG->items['Common']['LogDirectory'])) {
+/*if ($handle = opendir($CONFIG->items['Common']['LogDirectory'])) {
     while (false !== ($file = readdir($handle))) {
         if ($file != "." && $file != "..") {
 
@@ -196,14 +284,29 @@ if (!$result) {
     $message = 'Invalid query: ' . mysql_error() . "; ";
     $message .= 'Whole query: ' . $query;
     print "$message\n";
-}
-
-
-geoip_close($gi);
+}*/
 
 $endtime = time();
 $runtime_in_sec = $endtime - $starttime;
 
-echo "Running time: $runtime_in_sec sec; ";
-echo "Rows processed: $i\n";
+echo "Running time: ".$runtime_in_sec."sec; ";
+
+function logdate_to_mysqldatetime($timestring)
+{
+    $timestring = str_replace_first(':' , ' ', $timestring);
+    $timestring = str_replace('/', '-', $timestring);
+    
+    // Instantiate a DateTime with microseconds.
+    $d = new DateTime($timestring);
+
+    // Output the date with microseconds.
+    return $d->format('Y-m-d H:i:s'); // 2011-01-01 15:03:01
+}
+
+function str_replace_first($from, $to, $subject)
+{
+    $from = '/'.preg_quote($from, '/').'/';
+
+    return preg_replace($from, $to, $subject, 1);
+}
 ?>
