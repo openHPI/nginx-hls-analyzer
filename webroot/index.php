@@ -6,6 +6,7 @@ $CONFIG = new Config('../fmsloganalyzer.ini');
 if ($CONFIG->error_msg())
     die($CONFIG->error_msg());
 
+
 // Database connection
 $db_username = $CONFIG->items['Database']['Username'];
 $db_password = $CONFIG->items['Database']['Password'];
